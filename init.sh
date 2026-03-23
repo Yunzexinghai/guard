@@ -10,7 +10,6 @@ echo ">> 正在唤醒系统更新引擎，拉取最新软件源..."
 apt update > /dev/null 2>&1
 
 echo ">> 正在为你挂载日常排错所需的『瑞士军刀』..."
-# 这里是你专属的工具箱，想加什么小软件直接填在引号里，用空格隔开
 COMMON_TOOLS="curl wget git vim htop unzip net-tools lsof jq tree"
 apt install -y $COMMON_TOOLS > /dev/null 2>&1
 
@@ -30,6 +29,7 @@ if ! grep -q "ipset flush china_ip" /etc/crontab; then
     echo "$CRON_CMD" >> /etc/crontab
 fi
 
+# 核心隔离区：严格判定接管者
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     echo ">> 探测到系统由 UFW 接管前台，启动融合改造模式..."
 
@@ -45,8 +45,9 @@ esac
 EOF
     chmod +x /etc/ufw/before.init
 
+    # 【关键修复点】：将锚点改到链声明完毕之后
     if ! grep -q "china_ip" /etc/ufw/before.rules; then
-        sed -i '/^\*filter/a \
+        sed -i '/^# End required lines/a \
 -A ufw-before-input -m set --match-set china_ip src -j ACCEPT\n\
 -A ufw-before-input -p tcp --dport 22 -m set ! --match-set china_ip src -j DROP' /etc/ufw/before.rules
     fi
@@ -58,11 +59,13 @@ else
     echo ">> 探测到系统为原生纯净环境，启动 iptables 物理刻录模式..."
     apt install -y iptables-persistent ipset-persistent > /dev/null 2>&1
 
+    # 大扫除，防止规则反复堆叠
     iptables -D INPUT -i lo -j ACCEPT 2>/dev/null
     iptables -D INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null
     iptables -D INPUT -m set --match-set china_ip src -j ACCEPT 2>/dev/null
     iptables -D INPUT -p tcp --dport 22 -m set ! --match-set china_ip src -j DROP 2>/dev/null
 
+    # 重新立起大门
     iptables -I INPUT 1 -i lo -j ACCEPT
     iptables -I INPUT 2 -m state --state RELATED,ESTABLISHED -j ACCEPT
     iptables -I INPUT 3 -m set --match-set china_ip src -j ACCEPT
